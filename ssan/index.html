@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SSAN Bangladesh</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    crossorigin=""
+  />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            <path d="M12 8v4"></path>
+            <path d="M12 16h.01"></path>
+          </svg>
+        </div>
+        <div>
+          <h1>SSAN Bangladesh</h1>
+          <p>Smart Safety Awareness Network</p>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <div id="userBadge" class="user-badge hidden">
+          <span id="userEmailText"></span>
+          <span id="userRoleBadge" class="role-pill"></span>
+        </div>
+        <button id="authButton" class="btn btn-primary">Login</button>
+      </div>
+    </header>
+
+    <nav class="main-nav">
+      <button class="nav-btn active" data-tab="map">🗺️ <span>Map</span></button>
+      <button class="nav-btn" data-tab="alerts">🔔 <span>Alerts</span></button>
+      <button class="nav-btn user-only" data-tab="report">📝 <span>Report</span></button>
+      <button class="nav-btn user-only" data-tab="ai">🤖 <span>AI</span></button>
+      <button class="nav-btn user-only" data-tab="sos">📞 <span>SOS</span></button>
+      <button class="nav-btn admin-only hidden" data-tab="stats">📊 <span>Stats</span></button>
+      <button class="nav-btn admin-only hidden" data-tab="admin">⚙️ <span>Admin</span></button>
+    </nav>
+
+    <main class="page-content">
+      <!-- MAP -->
+      <section id="tab-map" class="tab-panel active">
+        <div class="grid two-col map-layout">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Live Safety Map</h2>
+                <p class="panel-subtitle">Realtime safety monitoring across Bangladesh</p>
+              </div>
+              <div class="card-actions">
+                <button type="button" id="centerUserBtn" class="btn btn-outline">My Location</button>
+                <button type="button" id="refreshMapBtn" class="btn btn-light">Refresh Pins</button>
+              </div>
+            </div>
+            <div id="map" class="leaflet-map"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Real-Time Alerts</h2>
+                <p class="panel-subtitle">Latest reported safety incidents</p>
+              </div>
+              <span id="alertsActiveBadge" class="status-badge status-danger">0 Active</span>
+            </div>
+
+            <div class="filters">
+              <input id="searchInput" type="text" placeholder="Search incidents..." />
+              <select id="severityFilter">
+                <option value="all">All Severity</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+              <select id="typeFilter">
+                <option value="all">All Types</option>
+                <option value="Crime">Crime</option>
+                <option value="Accident">Accident</option>
+                <option value="Hazard">Hazard</option>
+                <option value="Suspicious">Suspicious</option>
+                <option value="Emergency">Emergency</option>
+              </select>
+            </div>
+
+            <div id="incidentList" class="stack-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ALERTS -->
+      <section id="tab-alerts" class="tab-panel">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Safety Alerts</h2>
+              <p class="panel-subtitle">Priority warnings and updates</p>
+            </div>
+          </div>
+          <div id="alertsList" class="stack-list"></div>
+        </div>
+      </section>
+
+      <!-- REPORT -->
+<section id="tab-report" class="tab-panel">
+  <div class="report-wrap">
+    <article class="panel report-panel">
+      <div class="panel-head">
+        <div>
+          <h2 id="reportFormTitle">Report an Incident</h2>
+          <p class="panel-subtitle">Help keep your community safe by reporting incidents</p>
+        </div>
+      </div>
+
+      <div id="reportLoginInfo" class="login-info-box hidden">
+        <strong>🔒 You must be logged in to submit reports.</strong>
+        <button type="button" id="reportLoginBtn" class="text-link-btn">Login here</button>
+      </div>
+
+      <form id="reportForm" class="form-grid">
+        <input type="hidden" id="editIncidentId" />
+        <input type="hidden" id="incidentLat" />
+        <input type="hidden" id="incidentLng" />
+
+        <div class="field">
+          <label for="incidentType">Incident Type</label>
+          <select id="incidentType" required>
+            <option value="">Select type</option>
+            <option value="Crime">Crime</option>
+            <option value="Accident">Accident</option>
+            <option value="Hazard"> Fire / Hazard</option>
+            <option value="Suspicious">Suspicious</option>
+            <option value="Emergency">Emergency</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="incidentSeverity">Severity</label>
+          <select id="incidentSeverity" required>
+            <option value="">Select severity</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+
+        <div class="field field-full">
+          <label for="incidentLocationText">Location Name</label>
+          <input
+            id="incidentLocationText"
+            type="text"
+            placeholder="Enter location name (optional)"
+          />
+        </div>
+
+        <div class="field field-full">
+          <label for="incidentDescription">Description</label>
+          <textarea
+            id="incidentDescription"
+            rows="5"
+            placeholder="Describe the incident..."
+            required
+          ></textarea>
+        </div>
+
+        <div class="field field-full">
+          <label for="incidentPhoto">Photo (optional)</label>
+          <input id="incidentPhoto" type="file" accept="image/*" />
+          <small class="field-help">Upload JPG, PNG, or WebP up to 5 MB.</small>
+          <img id="incidentPhotoPreview" class="incident-image hidden" alt="Preview" />
+        </div>
+
+        <div class="field field-full form-actions">
+          <button type="button" id="gpsBtn" class="btn btn-outline">Use My Location</button>
+          <button type="submit" id="reportSubmitBtn" class="btn btn-primary">Submit Report</button>
+        </div>
+      </form>
+    </article>
+  </div>
+</section>
+      <!-- AI -->
+      <section id="tab-ai" class="tab-panel">
+        <div class="grid two-col">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Safety AI Assistant</h2>
+                <p class="panel-subtitle">English + বাংলা safety chat support</p>
+              </div>
+              <select id="chatLanguage" class="small-select">
+                <option value="auto">Auto</option>
+                <option value="en">English</option>
+                <option value="bn">বাংলা</option>
+              </select>
+            </div>
+
+            <div id="chatMessages" class="chat-messages"></div>
+
+            <form id="chatForm" class="chat-form">
+              <input id="chatInput" type="text" placeholder="Ask in English or Bangla..." required />
+              <button type="submit" class="btn btn-primary">Send</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Quick Questions</h2>
+                <p class="panel-subtitle">Tap to ask instantly</p>
+              </div>
+            </div>
+
+            <div class="quick-actions">
+              <button class="quick-btn question-chip">What should I do during an accident?</button>
+              <button class="quick-btn question-chip">How do I report suspicious activity?</button>
+              <button class="quick-btn question-chip">Which areas are currently high risk?</button>
+              <button class="quick-btn question-chip">আমি কিভাবে দুর্ঘটনার রিপোর্ট করব?</button>
+              <button class="quick-btn question-chip">জরুরি অবস্থায় কী করব?</button>
+              <button class="quick-btn question-chip">উচ্চ ঝুঁকির এলাকা কোনগুলো?</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- SOS -->
+
+      
+      <section id="tab-sos" class="tab-panel">
+        <div class="stack-page">
+          <article class="panel emergency-banner">
+            <div class="panel-head">
+              <div>
+                <h2>🚨 Emergency Call</h2>
+                <p class="panel-subtitle">Immediate emergency support options</p>
+              </div>
+            </div>
+            <button id="call999Btn" class="btn btn-primary full-btn">📞 Call 999 Now</button>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Your Location</h2>
+                <p class="panel-subtitle">Live map view</p>
+              </div>
+            </div>
+            <div id="sosMap" class="leaflet-map small-map"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <!-- <div>
+                <h2>Nearest Emergency Services</h2>
+                <p class="panel-subtitle">Quick contact and route actions</p>
+              </div> -->
+            </div>
+            <div id="nearbyServices" class="service-grid"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>SOS Activity</h2>
+                <p class="panel-subtitle">Recent emergency requests</p>
+              </div>
+            </div>
+            <div class="sos-actions">
+              <button id="sosButton" class="btn btn-danger btn-lg">Trigger SOS Alert</button>
+              <button id="shareLocationBtn" class="btn btn-outline">Share Location</button>
+            </div>
+            <div id="sosLog" class="stack-list mt-16"></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- STATS -->
+      <section id="tab-stats" class="tab-panel">
+        <div class="page-title">
+          <h2>Analytics Dashboard</h2>
+          <p>Monitor incidents, trends, and risk zones</p>
+        </div>
+
+        <div class="stats-grid">
+          <div class="metric-card big">
+            <span>Total Incidents</span>
+            <strong id="metricTotalIncidents">0</strong>
+          </div>
+          <div class="metric-card big">
+            <span>Users</span>
+            <strong id="metricUsers">0</strong>
+          </div>
+          <div class="metric-card big">
+            <span>Resolution Rate</span>
+            <strong id="metricResolution">N/A</strong>
+          </div>
+          <div class="metric-card big">
+            <span>Risk Areas</span>
+            <strong id="metricRiskAreas">0</strong>
+          </div>
+        </div>
+
+        <div class="grid two-col">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Incidents Overview</h2>
+                <p class="panel-subtitle">Live Firebase data</p>
+              </div>
+            </div>
+            <div id="bars" class="bars"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Incident Types</h2>
+                <p class="panel-subtitle">Live distribution</p>
+              </div>
+            </div>
+            <div id="typeStats" class="type-stats"></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ADMIN -->
+      <section id="tab-admin" class="tab-panel">
+        <div class="grid two-col">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>User Management</h2>
+                <p class="panel-subtitle">Registered users</p>
+              </div>
+              <span id="usersCountBadge" class="status-badge status-info">0 Users</span>
+            </div>
+            <div id="usersList" class="stack-list"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Incident Management</h2>
+                <p class="panel-subtitle">Edit and delete incidents</p>
+              </div>
+              <span id="adminIncidentsCountBadge" class="status-badge status-danger">0 Incidents</span>
+            </div>
+            <div id="adminIncidentsList" class="stack-list"></div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>© 2026 SSAN - Smart Safety Awareness Network. All rights reserved.</span>
+      <div class="footer-links">
+        <span>Privacy Policy</span>
+        <span>Terms of Service</span>
+        <span>Contact Support</span>
+      </div>
+    </footer>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <div id="loginModal" class="modal hidden">
+    <div class="modal-backdrop" data-close-modal="true"></div>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="authModalTitle">Login to SSAN</h3>
+        <button class="modal-close" data-close-modal="true">✕</button>
+      </div>
+
+      <form id="loginForm" class="form-grid">
+        <div class="field field-full">
+          <label for="loginEmail">Email</label>
+          <input id="loginEmail" type="email" placeholder="name@example.com" required />
+        </div>
+
+        <div class="field field-full">
+          <label for="loginPassword">Password</label>
+          <input id="loginPassword" type="password" placeholder="••••••••" required />
+        </div>
+
+        <div class="field field-full">
+          <label for="loginRole">Role</label>
+          <select id="loginRole" required>
+            <option value="user">User</option>
+            
+          </select>
+        </div>
+
+        <div class="field field-full">
+          <label for="authMode">Mode</label>
+          <select id="authMode" required>
+            <option value="login">Login</option>
+            <option value="register">Register</option>
+          </select>
+        </div>
+
+        <div class="field field-full form-actions">
+          <button type="submit" class="btn btn-primary">Continue</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
